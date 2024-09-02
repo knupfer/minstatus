@@ -1,0 +1,38 @@
+cabal-version:      3.4
+name:               minbar
+
+-- PVP summary:     +-+------- breaking API changes
+--                  | | +----- non-breaking API additions
+--                  | | | +--- code changes with no API change
+version:            0.1.0.0
+synopsis:           Minimal status bar for sway.
+-- description:
+license:            BSD-3-Clause
+license-file:       LICENSE
+author:             Florian Knupfer
+maintainer:         fknupfer@gmail.com
+copyright:          2024 Florian Knupfer
+category:           System
+build-type:         Simple
+
+-- Extra doc files to be distributed with the package, such as a CHANGELOG or a README.
+extra-doc-files:    CHANGELOG.md
+
+common warnings
+    ghc-options: -Wall
+
+executable minbar
+    import:           warnings
+
+    main-is:          Main.hs
+
+    -- Modules included in this executable, other than Main.
+    -- other-modules:
+
+    -- Other library packages from which modules are imported.
+    build-depends:    base ^>=4.18.2.1
+                    , time
+
+    hs-source-dirs:   app
+
+    default-language: GHC2021
