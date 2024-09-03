@@ -4,14 +4,14 @@ let
 
   inherit (nixpkgs) pkgs;
 
-  f = { mkDerivation, base, lib, time }:
+  f = { mkDerivation, base, bytestring, lib, process, time }:
       mkDerivation {
         pname = "minbar";
         version = "0.1.0.0";
         src = ./.;
         isLibrary = false;
         isExecutable = true;
-        executableHaskellDepends = [ base time ];
+        executableHaskellDepends = [ base bytestring process time ];
         description = "Minimal status bar for sway";
         license = lib.licenses.bsd3;
         mainProgram = "minbar";

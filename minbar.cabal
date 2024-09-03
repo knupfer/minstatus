@@ -25,6 +25,7 @@ executable minbar
     import:           warnings
 
     main-is:          Main.hs
+    ghc-options:      -O3
 
     -- Modules included in this executable, other than Main.
     -- other-modules:
@@ -32,6 +33,8 @@ executable minbar
     -- Other library packages from which modules are imported.
     build-depends:    base ^>=4.18.2.1
                     , time
+                    , bytestring
+                    , process
 
     hs-source-dirs:   app
 
