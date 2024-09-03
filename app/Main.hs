@@ -41,7 +41,7 @@ getSound :: IO Sound
 getSound = do
   out <- readProcess "amixer" ["sget","Master"] ""
   let [active, _db, vol] = take 3 . reverse . words $ out
-  pure $ Sound (read . takeWhile (/='%') $ drop 1 vol) (active == "[on]")
+  pure $ Sound (read . takeWhile (/='%') $ drop 1 vol) (active == "[off]")
 
 monitorTime :: TimeZone -> MVar (State -> State) -> IO ()
 monitorTime zone mv = forever $ do

@@ -1,5 +1,7 @@
 # Revision history for minstatus
 
+* fix mute
+
 ## 0.2.0.0 -- 2024-09-03
 
 * Update event based
