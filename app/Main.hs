@@ -65,6 +65,8 @@ prettyBattery Battery{..} = text <> num
              | otherwise = "Capacity:"
 
 prettyState :: State -> Builder
-prettyState (State{..}) = prettyBattery battery <> "  │  " <>  prettySound sound <> "  │  " <> prettyTime time <> char7 '\n'
+prettyState (State{..}) = prettyBattery battery <> separator <> prettySound sound <> separator <> prettyTime time <> char7 '\n'
 
+separator :: Builder
+separator = "  │  "
 
