@@ -83,7 +83,7 @@ padNum _ _ i = intDec i
 prettySound :: Sound -> Builder
 prettySound Sound{..} = text <> num
                       where num = padNum ' ' 3 volume <> char7 '%'
-                            text | muted     =  "Muted:"
+                            text | muted     = " Muted:"
                                  | otherwise = "Volume:"
 
 prettyBattery :: Battery -> Builder
