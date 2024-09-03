@@ -18,13 +18,17 @@ data Battery = Battery {capacity :: Int, charging :: Bool}
 main :: IO ()
 main = do
   zone <- getTimeZone =<< getCurrentTime
+  initialState <- State <$> getTime zone <*> getSound <*> getBattery
+  updater <- newEmptyMVar :: IO (MVar (State -> State))
+  void $ forkIO (monitorBattery updater)
+  void $ forkIO (monitorSound updater)
+  void $ forkIO (monitorTime zone updater)
   hSetBuffering stdout LineBuffering
-  forever $ do
-    t <- getTime zone
-    s <- getSound
-    b <- getBattery
-    hPutBuilder stdout . prettyState $ State t s b
-    threadDelay 1000000
+  let printer state = do
+        hPutBuilder stdout $ prettyState state
+        f <- takeMVar updater
+        printer (f state)
+  printer initialState
 
 getTime :: TimeZone -> IO Time
 getTime zone = do
@@ -38,6 +42,30 @@ getSound = do
   out <- readProcess "amixer" ["sget","Master"] ""
   let [active, _db, vol] = take 3 . reverse . words $ out
   pure $ Sound (read . takeWhile (/='%') $ drop 1 vol) (active == "[on]")
+
+monitorTime :: TimeZone -> MVar (State -> State) -> IO ()
+monitorTime zone mv = forever $ do
+  threadDelay 60000000
+  newTime <- getTime zone
+  newBattery <- getBattery
+  putMVar mv (\s -> s{time = newTime, battery = newBattery})
+
+monitorBattery :: MVar (State -> State) -> IO ()
+monitorBattery mv = do
+  (_, Just hout, _, _) <- createProcess (proc "udevadm" ["monitor", "-k", "-s", "usb_power_delivery"]) {std_out = CreatePipe}
+  forever $ do
+    void $ hGetLine hout
+    threadDelay 1000000
+    newBattery <- getBattery
+    putMVar mv (\s -> s{battery = newBattery})
+
+monitorSound :: MVar (State -> State) -> IO ()
+monitorSound mv = do
+  (_, Just hout, _, _) <- createProcess (proc "alsactl" ["monitor"]) {std_out = CreatePipe}
+  forever $ do
+    void $ hGetLine hout
+    newSound <- getSound
+    putMVar mv (\s -> s{sound = newSound})
 
 getBattery :: IO Battery
 getBattery = do
@@ -55,7 +83,7 @@ padNum _ _ i = intDec i
 prettySound :: Sound -> Builder
 prettySound Sound{..} = text <> num
                       where num = padNum ' ' 3 volume <> char7 '%'
-                            text | muted     = " Muted:"
+                            text | muted     =  "Muted:"
                                  | otherwise = "Volume:"
 
 prettyBattery :: Battery -> Builder
@@ -65,7 +93,7 @@ prettyBattery Battery{..} = text <> num
              | otherwise = "Capacity:"
 
 prettyState :: State -> Builder
-prettyState (State{..}) = prettyBattery battery <> separator <> prettySound sound <> separator <> prettyTime time <> char7 '\n'
+prettyState (State{..}) = prettySound sound <> separator <> prettyBattery battery <> separator <> prettyTime time <> char7 '\n'
 
 separator :: Builder
 separator = "  │  "

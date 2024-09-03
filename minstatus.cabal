@@ -1,11 +1,11 @@
 cabal-version:      3.4
-name:               minbar
+name:               minstatus
 
 -- PVP summary:     +-+------- breaking API changes
 --                  | | +----- non-breaking API additions
 --                  | | | +--- code changes with no API change
 version:            0.1.0.0
-synopsis:           Minimal status bar for sway.
+synopsis:           Minimal status command for sway or i3.
 -- description:
 license:            BSD-3-Clause
 license-file:       LICENSE
@@ -21,7 +21,7 @@ extra-doc-files:    CHANGELOG.md
 common warnings
     ghc-options: -Wall
 
-executable minbar
+executable minstatus
     import:           warnings
 
     main-is:          Main.hs

@@ -6,15 +6,15 @@ let
 
   f = { mkDerivation, base, bytestring, lib, process, time }:
       mkDerivation {
-        pname = "minbar";
-        version = "0.1.0.0";
+        pname = "minstatus";
+        version = "0.2.0.0";
         src = ./.;
         isLibrary = false;
         isExecutable = true;
         executableHaskellDepends = [ base bytestring process time ];
-        description = "Minimal status bar for sway";
+        description = "Minimal status command for sway or i3";
         license = lib.licenses.bsd3;
-        mainProgram = "minbar";
+        mainProgram = "minstatus";
       };
 
   haskellPackages = if compiler == "default"
