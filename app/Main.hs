@@ -89,17 +89,20 @@ getBattery :: IO Battery
 getBattery = Battery <$> getCapacity <*> getStatus
 
 prettyTime :: Time -> Builder
-prettyTime Time{..} = intDec year <> char7 '.' <> intDec month <> char7 '.' <> intDec day <> char7 ' ' <> intDec hour <> char7 ':' <> padNum '0' 2 minute
-
-padNum :: Char -> Int -> Int -> Builder
-padNum c len i | len > 1 && 10^(len-1) > i = char7 c <> padNum c (len-1) i
-padNum _ _ i = intDec i
+prettyTime Time{..} = intDec year <> char7 '.' <> intDec month <> char7 '.' <> intDec day <> char7 ' ' <> intDec hour <> char7 ':' <> pad minute
+  where {-# INLINE pad #-}
+        pad i | i < 10 = char7 '0' <> intDec i
+        pad i = intDec i
 
 prettySound :: Sound -> Builder
 prettySound Sound{..} = text <> num
-                      where num = padNum ' ' 3 volume <> char7 '%'
-                            text | muted     = " Muted:"
-                                 | otherwise = "Volume:"
+  where num = pad volume <> char7 '%'
+        text | muted     = " Muted:"
+             | otherwise = "Volume:"
+        {-# INLINE pad #-}
+        pad i | i < 10 = char7 ' ' <> char7 ' ' <> intDec i
+              | i < 100 = char7 ' ' <> intDec i
+              | otherwise = intDec i
 
 prettyBattery :: Battery -> Builder
 prettyBattery Battery{..} = text <> pad num
