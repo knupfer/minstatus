@@ -1,5 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE LambdaCase #-}
 module Main where
 
 import Control.Concurrent
@@ -47,17 +48,18 @@ monitorTime :: TimeZone -> MVar (State -> State) -> IO ()
 monitorTime zone mv = forever $ do
   threadDelay 60000000
   newTime <- getTime zone
-  newBattery <- getBattery
-  putMVar mv (\s -> s{time = newTime, battery = newBattery})
+  newCapacity <- getCapacity
+  putMVar mv (\s -> s{time = newTime, battery = (battery s) {capacity = newCapacity}})
 
 monitorBattery :: MVar (State -> State) -> IO ()
 monitorBattery mv = do
   (_, Just hout, _, _) <- createProcess (proc "udevadm" ["monitor", "-k", "-s", "usb_power_delivery"]) {std_out = CreatePipe}
-  forever $ do
-    void $ hGetLine hout
-    threadDelay 1000000
-    newBattery <- getBattery
-    putMVar mv (\s -> s{battery = newBattery})
+  xs <- words <$> hGetContents hout
+  forM_ xs $ \case
+    "add" -> update True
+    "remove" -> update False
+    _ -> pure ()
+    where update b = putMVar mv (\s -> s{battery = (battery s) {charging = b}})
 
 monitorSound :: MVar (State -> State) -> IO ()
 monitorSound mv = do
@@ -67,11 +69,14 @@ monitorSound mv = do
     newSound <- getSound
     putMVar mv (\s -> s{sound = newSound})
 
+getCapacity :: IO Int
+getCapacity = read <$> readFile "/sys/class/power_supply/BAT0/capacity"
+
+getStatus :: IO Bool
+getStatus = not . isPrefixOf "Discharging" <$> readFile "/sys/class/power_supply/BAT0/status"
+
 getBattery :: IO Battery
-getBattery = do
-  c <- readFile "/sys/class/power_supply/BAT0/capacity"
-  s <- readFile "/sys/class/power_supply/BAT0/status"
-  pure $ Battery (read c) (not $ "Discharging" `isPrefixOf` s)
+getBattery = Battery <$> getCapacity <*> getStatus
 
 prettyTime :: Time -> Builder
 prettyTime Time{..} = intDec year <> char7 '.' <> intDec month <> char7 '.' <> intDec day <> char7 ' ' <> intDec hour <> char7 ':' <> padNum '0' 2 minute
