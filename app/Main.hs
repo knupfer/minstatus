@@ -8,6 +8,8 @@ import System.Process
 import System.IO
 import Data.ByteString.Builder
 
+import qualified Data.ByteString.Char8 as B8
+
 import Control.Monad
 import Data.Time
 import Data.List
@@ -15,7 +17,7 @@ import Data.List
 data State = State {time :: Time, sound :: Sound, battery :: Battery}
 data Time  = Time {year :: Int, month :: Int, day :: Int, hour :: Int, minute :: Int}
 data Sound = Sound {volume :: Int, muted :: Bool}
-data Battery = Battery {capacity :: Int, charging :: Bool}
+data Battery = Battery {capacity :: B8.ByteString, charging :: Bool}
 
 main :: IO ()
 main = do
@@ -55,7 +57,7 @@ monitorTime zone mv = forever $ do
 monitorCapacity :: MVar (State -> State) -> IO ()
 monitorCapacity mv = withFile "/sys/class/power_supply/BAT0/capacity" ReadMode $ \fh -> forever $ do
   threadDelay 300000000  -- 5 min
-  newCapacity <- read <$> hGetLine fh
+  newCapacity <- B8.hGetLine fh
   putMVar mv (\s -> s{battery = (battery s) {capacity = newCapacity}})
   hSeek fh AbsoluteSeek 0
 
@@ -77,8 +79,8 @@ monitorSound mv = do
     newSound <- getSound
     putMVar mv (\s -> s{sound = newSound})
 
-getCapacity :: IO Int
-getCapacity = read <$> readFile "/sys/class/power_supply/BAT0/capacity"
+getCapacity :: IO B8.ByteString
+getCapacity = B8.dropEnd 1 <$> B8.readFile "/sys/class/power_supply/BAT0/capacity"
 
 getStatus :: IO Bool
 getStatus = not . isPrefixOf "Discharging" <$> readFile "/sys/class/power_supply/BAT0/status"
@@ -100,10 +102,14 @@ prettySound Sound{..} = text <> num
                                  | otherwise = "Volume:"
 
 prettyBattery :: Battery -> Builder
-prettyBattery Battery{..} = text <> num
-  where num = padNum ' ' 3 capacity <> char7 '%'
+prettyBattery Battery{..} = text <> pad num
+  where num = byteString capacity <> char7 '%'
         text | charging  = "Charging:"
              | otherwise = "Capacity:"
+        pad = case B8.length capacity of
+          1 -> ("  " <>)
+          2 -> (" " <>)
+          _ -> id
 
 prettyState :: State -> Builder
 prettyState (State{..}) = prettySound sound <> separator <> prettyBattery battery <> separator <> prettyTime time <> char7 '\n'
