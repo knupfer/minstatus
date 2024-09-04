@@ -21,7 +21,8 @@ main = do
   zone <- getTimeZone =<< getCurrentTime
   initialState <- State <$> getTime zone <*> getSound <*> getBattery
   updater <- newEmptyMVar :: IO (MVar (State -> State))
-  void $ forkIO (monitorBattery updater)
+  void $ forkIO (monitorCharging updater)
+  void $ forkIO (monitorCapacity updater)
   void $ forkIO (monitorSound updater)
   void $ forkIO (monitorTime zone updater)
   hSetBuffering stdout LineBuffering
@@ -48,11 +49,16 @@ monitorTime :: TimeZone -> MVar (State -> State) -> IO ()
 monitorTime zone mv = forever $ do
   threadDelay 60000000
   newTime <- getTime zone
-  newCapacity <- getCapacity
-  putMVar mv (\s -> s{time = newTime, battery = (battery s) {capacity = newCapacity}})
+  putMVar mv (\s -> s{time = newTime})
 
-monitorBattery :: MVar (State -> State) -> IO ()
-monitorBattery mv = do
+monitorCapacity :: MVar (State -> State) -> IO ()
+monitorCapacity mv = forever $ do
+  threadDelay 300000000  -- 5 min
+  newCapacity <- getCapacity
+  putMVar mv (\s -> s{battery = (battery s) {capacity = newCapacity}})
+
+monitorCharging :: MVar (State -> State) -> IO ()
+monitorCharging mv = do
   (_, Just hout, _, _) <- createProcess (proc "udevadm" ["monitor", "-k", "-s", "usb_power_delivery"]) {std_out = CreatePipe}
   xs <- words <$> hGetContents hout
   forM_ xs $ \case
