@@ -8,9 +8,6 @@ import System.Process
 import System.IO
 import Data.ByteString.Builder
 
-import Data.Maybe
-import qualified Data.ByteString.Char8 as B8
-
 import Control.Monad
 import Data.Time
 import Data.List
@@ -56,10 +53,11 @@ monitorTime zone mv = forever $ do
   putMVar mv (\s -> s{time = newTime})
 
 monitorCapacity :: MVar (State -> State) -> IO ()
-monitorCapacity mv = forever $ do
+monitorCapacity mv = withFile "/sys/class/power_supply/BAT0/capacity" ReadMode $ \fh -> forever $ do
   threadDelay 300000000  -- 5 min
-  newCapacity <- getCapacity
+  newCapacity <- read <$> hGetLine fh
   putMVar mv (\s -> s{battery = (battery s) {capacity = newCapacity}})
+  hSeek fh AbsoluteSeek 0
 
 monitorCharging :: MVar (State -> State) -> IO ()
 monitorCharging mv = do
@@ -80,7 +78,7 @@ monitorSound mv = do
     putMVar mv (\s -> s{sound = newSound})
 
 getCapacity :: IO Int
-getCapacity = fst . fromJust . B8.readInt <$> B8.readFile "/sys/class/power_supply/BAT0/capacity"
+getCapacity = read <$> readFile "/sys/class/power_supply/BAT0/capacity"
 
 getStatus :: IO Bool
 getStatus = not . isPrefixOf "Discharging" <$> readFile "/sys/class/power_supply/BAT0/status"
