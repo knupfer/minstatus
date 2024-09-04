@@ -7,6 +7,10 @@ import Control.Concurrent
 import System.Process
 import System.IO
 import Data.ByteString.Builder
+
+import Data.Maybe
+import qualified Data.ByteString.Char8 as B8
+
 import Control.Monad
 import Data.Time
 import Data.List
@@ -76,7 +80,7 @@ monitorSound mv = do
     putMVar mv (\s -> s{sound = newSound})
 
 getCapacity :: IO Int
-getCapacity = read <$> readFile "/sys/class/power_supply/BAT0/capacity"
+getCapacity = fst . fromJust . B8.readInt <$> B8.readFile "/sys/class/power_supply/BAT0/capacity"
 
 getStatus :: IO Bool
 getStatus = not . isPrefixOf "Discharging" <$> readFile "/sys/class/power_supply/BAT0/status"
