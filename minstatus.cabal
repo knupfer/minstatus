@@ -31,7 +31,7 @@ executable minstatus
     -- other-modules:
 
     -- Other library packages from which modules are imported.
-    build-depends:    base ^>=4.18.2.1
+    build-depends:    base
                     , time
                     , bytestring
                     , process
