@@ -24,7 +24,7 @@ main = do
   zone <- getTimeZone =<< getCurrentTime
   initialState <- State <$> getTime zone <*> getSound <*> getBattery
   updater <- newEmptyMVar :: IO (MVar (State -> State))
-  void $ forkIO (monitorCharging updater)
+  void $ forkIO (monitorCharging zone updater)
   void $ forkIO (monitorCapacity updater)
   void $ forkIO (monitorSound updater)
   void $ forkIO (monitorTime updater)
@@ -66,13 +66,16 @@ monitorCapacity mv = withFile "/sys/class/power_supply/BAT0/capacity" ReadMode $
   putMVar mv (\s -> s{battery = (battery s) {capacity = newCapacity}})
   hSeek fh AbsoluteSeek 0
 
-monitorCharging :: MVar (State -> State) -> IO ()
-monitorCharging mv = do
-  (_, Just hout, _, _) <- createProcess (proc "udevadm" ["monitor", "-k", "-s", "usb_power_delivery"]) {std_out = CreatePipe}
+monitorCharging :: TimeZone -> MVar (State -> State) -> IO ()
+monitorCharging zone mv = do
+  (_, Just hout, _, _) <- createProcess (proc "udevadm" ["monitor", "-k", "-s", "usb_power_delivery", "-s", "nvme"]) {std_out = CreatePipe}
   xs <- words <$> hGetContents hout
   forM_ xs $ \case
     "add" -> update True
     "remove" -> update False
+    "change" -> do
+      t <- getTime zone
+      putMVar mv (\s -> s{time = t})
     _ -> pure ()
     where update b = putMVar mv (\s -> s{battery = (battery s) {charging = b}})
 
