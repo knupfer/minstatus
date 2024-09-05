@@ -97,38 +97,36 @@ getStatus = not . isPrefixOf "Discharging" <$> readFile "/sys/class/power_supply
 getBattery :: IO Battery
 getBattery = Battery <$> getCapacity <*> getStatus
 
+{-# INLINE prettyTime #-}
 prettyTime :: Time -> Builder
 prettyTime Time{..} = intDec year <> char7 '.' <> intDec month <> char7 '.' <> intDec day <> char7 ' ' <> intDec hour <> char7 ':' <> pad minute
   where {-# INLINE pad #-}
         pad i | i < 10 = char7 '0' <> intDec i
         pad i = intDec i
 
+{-# INLINE prettySound #-}
 prettySound :: Sound -> Builder
 prettySound Sound{..} = text <> pad (byteString volume)
-  where text | muted     = " Muted:"
-             | otherwise = "Volume:"
-        -- {-# INLINE pad #-}
-        -- pad i | i < 10 = char7 ' ' <> char7 ' ' <> intDec i
-        --       | i < 100 = char7 ' ' <> intDec i
-        --       | otherwise = intDec i
+  where text | muted     = byteString " Muted:"
+             | otherwise = byteString "Volume:"
         pad = case B8.length volume of
-          2 -> ("  " <>)
-          3 -> (" " <>)
+          2 -> (char7 ' ' <>) . (char7 ' ' <>)
+          3 -> (char7 ' ' <>)
           _ -> id
 
+{-# INLINE prettyBattery #-}
 prettyBattery :: Battery -> Builder
 prettyBattery Battery{..} = text <> pad num
   where num = byteString capacity <> char7 '%'
-        text | charging  = "Charging:"
-             | otherwise = "Capacity:"
+        text | charging  = byteString "Charging:"
+             | otherwise = byteString "Capacity:"
         pad = case B8.length capacity of
-          1 -> ("  " <>)
-          2 -> (" " <>)
+          1 -> (char7 ' ' <>) . (char7 ' ' <>)
+          2 -> (char7 ' ' <>)
           _ -> id
 
 prettyState :: State -> Builder
-prettyState (State{..}) = prettySound sound <> separator <> prettyBattery battery <> separator <> prettyTime time <> char7 '\n'
+prettyState (State{..}) = prettySound sound <> byteString separator <> prettyBattery battery <> byteString separator <> prettyTime time <> char7 '\n'
 
-separator :: Builder
+separator :: B8.ByteString
 separator = "  │  "
-
