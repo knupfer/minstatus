@@ -126,7 +126,7 @@ prettyBattery Battery{..} = text <> pad num
           _ -> id
 
 prettyState :: State -> Builder
-prettyState (State{..}) = prettySound sound <> byteString separator <> prettyBattery battery <> byteString separator <> prettyTime time <> char7 '\n'
+prettyState (State{..}) = prettySound sound <> separator <> prettyBattery battery <> separator <> prettyTime time <> char7 '\n'
 
-separator :: B8.ByteString
+separator :: Builder
 separator = "  │  "
