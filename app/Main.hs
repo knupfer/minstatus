@@ -16,7 +16,7 @@ import Data.List
 
 data State = State {time :: Time, sound :: Sound, battery :: Battery}
 data Time  = Time {year :: Int, month :: Int, day :: Int, hour :: Int, minute :: Int}
-data Sound = Sound {volume :: Int, muted :: Bool}
+data Sound = Sound {volume :: B8.ByteString, muted :: Bool}
 data Battery = Battery {capacity :: B8.ByteString, charging :: Bool}
 
 main :: IO ()
@@ -50,9 +50,10 @@ getTime zone = do
 
 getSound :: IO Sound
 getSound = do
-  out <- readProcess "amixer" ["sget","Master"] ""
-  let [active, _db, vol] = take 3 . reverse . words $ out
-  pure $ Sound (read . takeWhile (/='%') $ drop 1 vol) (active == "[off]")
+  (_, Just hout, _, _) <- createProcess (proc "amixer" ["sget", "Master"]) {std_out = CreatePipe}
+  xs <- B8.words <$> B8.hGetContents hout
+  let [active, _db, vol] = take 3 $ reverse xs
+  pure $ Sound (B8.dropEnd 1 $ B8.drop 1 vol) (active == "[off]")
 
 monitorTime :: MVar (State -> State) -> IO ()
 monitorTime mv = forever $ do
@@ -83,7 +84,7 @@ monitorSound :: MVar (State -> State) -> IO ()
 monitorSound mv = do
   (_, Just hout, _, _) <- createProcess (proc "alsactl" ["monitor"]) {std_out = CreatePipe}
   forever $ do
-    void $ hGetLine hout
+    void $ B8.hGetLine hout
     newSound <- getSound
     putMVar mv (\s -> s{sound = newSound})
 
@@ -103,14 +104,17 @@ prettyTime Time{..} = intDec year <> char7 '.' <> intDec month <> char7 '.' <> i
         pad i = intDec i
 
 prettySound :: Sound -> Builder
-prettySound Sound{..} = text <> num
-  where num = pad volume <> char7 '%'
-        text | muted     = " Muted:"
+prettySound Sound{..} = text <> pad (byteString volume)
+  where text | muted     = " Muted:"
              | otherwise = "Volume:"
-        {-# INLINE pad #-}
-        pad i | i < 10 = char7 ' ' <> char7 ' ' <> intDec i
-              | i < 100 = char7 ' ' <> intDec i
-              | otherwise = intDec i
+        -- {-# INLINE pad #-}
+        -- pad i | i < 10 = char7 ' ' <> char7 ' ' <> intDec i
+        --       | i < 100 = char7 ' ' <> intDec i
+        --       | otherwise = intDec i
+        pad = case B8.length volume of
+          2 -> ("  " <>)
+          3 -> (" " <>)
+          _ -> id
 
 prettyBattery :: Battery -> Builder
 prettyBattery Battery{..} = text <> pad num
