@@ -27,12 +27,18 @@ main = do
   void $ forkIO (monitorCharging updater)
   void $ forkIO (monitorCapacity updater)
   void $ forkIO (monitorSound updater)
-  void $ forkIO (monitorTime zone updater)
+  void $ forkIO (monitorTime updater)
   hSetBuffering stdout LineBuffering
   let printer state = do
         hPutBuilder stdout $ prettyState state
         f <- takeMVar updater
-        printer (f state)
+        let new = f state
+        if minute (time new) > 59
+          then do
+          t <- getTime zone
+          printer (new {time = t})
+          else
+          printer new
   printer initialState
 
 getTime :: TimeZone -> IO Time
@@ -48,11 +54,10 @@ getSound = do
   let [active, _db, vol] = take 3 . reverse . words $ out
   pure $ Sound (read . takeWhile (/='%') $ drop 1 vol) (active == "[off]")
 
-monitorTime :: TimeZone -> MVar (State -> State) -> IO ()
-monitorTime zone mv = forever $ do
+monitorTime :: MVar (State -> State) -> IO ()
+monitorTime mv = forever $ do
   threadDelay 60000000
-  newTime <- getTime zone
-  putMVar mv (\s -> s{time = newTime})
+  putMVar mv (\s -> s{time = (time s) {minute = succ . minute $ time s}})
 
 monitorCapacity :: MVar (State -> State) -> IO ()
 monitorCapacity mv = withFile "/sys/class/power_supply/BAT0/capacity" ReadMode $ \fh -> forever $ do
