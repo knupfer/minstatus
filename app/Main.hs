@@ -49,8 +49,7 @@ getTime zone = do
   pure $ Time (fromIntegral y) mo d h m
 
 getSound :: IO Sound
-getSound = do
-  (_, Just hout, _, _) <- createProcess (proc "amixer" ["sget", "Master"]) {std_out = CreatePipe}
+getSound = withCreateProcess (proc "amixer" ["sget", "Master"]) {std_out = CreatePipe} $ \_ (Just hout) _ _ -> do
   xs <- B8.words <$> B8.hGetContents hout
   let [active, _db, vol] = take 3 $ reverse xs
   pure $ Sound (B8.dropEnd 1 $ B8.drop 1 vol) (active == "[off]")
@@ -68,8 +67,7 @@ monitorCapacity mv = withFile "/sys/class/power_supply/BAT0/capacity" ReadMode $
   hSeek fh AbsoluteSeek 0
 
 monitorCharging :: TimeZone -> MVar (State -> State) -> IO ()
-monitorCharging zone mv = do
-  (_, Just hout, _, _) <- createProcess (proc "udevadm" ["monitor", "-k", "-s", "usb_power_delivery", "-s", "nvme"]) {std_out = CreatePipe}
+monitorCharging zone mv = withCreateProcess (proc "udevadm" ["monitor", "-k", "-s", "usb_power_delivery", "-s", "nvme"]) {std_out = CreatePipe} $ \_ (Just hout) _ _ -> do
   xs <- words <$> hGetContents hout
   forM_ xs $ \case
     "add" -> update True
@@ -81,8 +79,7 @@ monitorCharging zone mv = do
     where update b = putMVar mv (\s -> s{battery = (battery s) {charging = b}})
 
 monitorSound :: MVar (State -> State) -> IO ()
-monitorSound mv = do
-  (_, Just hout, _, _) <- createProcess (proc "alsactl" ["monitor"]) {std_out = CreatePipe}
+monitorSound mv = withCreateProcess (proc "alsactl" ["monitor"]) {std_out = CreatePipe} $ \_ (Just hout) _ _ ->
   forever $ do
     void $ B8.hGetLine hout
     newSound <- getSound
