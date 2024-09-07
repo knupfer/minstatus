@@ -12,7 +12,7 @@ let
   f = { mkDerivation, alsa-mixer, base, bytestring, lib, process, time }:
       mkDerivation {
         pname = "minstatus";
-        version = "0.2.0.0";
+        version = "0.3.0.0";
         src = ./.;
         isLibrary = false;
         isExecutable = true;

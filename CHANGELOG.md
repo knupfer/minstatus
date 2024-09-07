@@ -1,5 +1,8 @@
 # Revision history for minstatus
 
+## 0.3.0.0 -- 2024-09-07
+
+* perf improvements
 * fix mute
 
 ## 0.2.0.0 -- 2024-09-03

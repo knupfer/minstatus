@@ -4,7 +4,7 @@ name:               minstatus
 -- PVP summary:     +-+------- breaking API changes
 --                  | | +----- non-breaking API additions
 --                  | | | +--- code changes with no API change
-version:            0.2.0.0
+version:            0.3.0.0
 synopsis:           Minimal status command for sway or i3.
 -- description:
 license:            BSD-3-Clause
