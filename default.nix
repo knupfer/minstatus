@@ -9,14 +9,14 @@ let
                        then pkgs.haskellPackages
                        else pkgs.haskell.packages.${compiler};
   
-  f = { mkDerivation, base, bytestring, lib, process, time }:
+  f = { mkDerivation, alsa-mixer, base, bytestring, lib, process, time }:
       mkDerivation {
         pname = "minstatus";
         version = "0.2.0.0";
         src = ./.;
         isLibrary = false;
         isExecutable = true;
-        executableHaskellDepends = [ base bytestring process time ];
+        executableHaskellDepends = [ alsa-mixer base bytestring process time ];
         description = "Minimal status command for sway or i3";
         license = lib.licenses.bsd3;
         mainProgram = "minstatus";

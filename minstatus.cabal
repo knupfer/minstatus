@@ -35,6 +35,7 @@ executable minstatus
                     , time
                     , bytestring
                     , process
+                    , alsa-mixer
 
     hs-source-dirs:   app
 

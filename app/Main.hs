@@ -14,9 +14,11 @@ import Control.Monad
 import Data.Time
 import Data.List
 
+import qualified Sound.ALSA.Mixer as A
+
 data State = State {time :: Time, sound :: Sound, battery :: Battery}
 data Time  = Time {year :: Int, month :: Int, day :: Int, hour :: Int, minute :: Int}
-data Sound = Sound {volume :: B8.ByteString, muted :: Bool}
+data Sound = Sound {volume :: Int, muted :: Bool}
 data Battery = Battery {capacity :: B8.ByteString, charging :: Bool}
 
 main :: IO ()
@@ -49,10 +51,14 @@ getTime zone = do
   pure $ Time (fromIntegral y) mo d h m
 
 getSound :: IO Sound
-getSound = withCreateProcess (proc "amixer" ["sget", "Master"]) {std_out = CreatePipe} $ \_ (Just hout) _ _ -> do
-  xs <- B8.words <$> B8.hGetContents hout
-  let [active, _db, vol] = take 3 $ reverse xs
-  pure $ Sound (B8.dropEnd 1 $ B8.drop 1 vol) (active == "[off]")
+getSound = A.withMixer "default" $ \mixer -> do
+    Just control <- A.getControlByName mixer "Master"
+    let Just playbackSwitch = A.playback $ A.switch control
+        Just playbackVolume = A.playback $ A.volume control
+    Just sw <- A.getChannel A.FrontLeft playbackSwitch
+    (_, hi) <- A.getRange playbackVolume
+    Just vol <- A.getChannel A.FrontLeft $ A.value $ playbackVolume
+    pure $ Sound (fromIntegral $ vol*100 `div` hi) (not sw)
 
 monitorTime :: MVar (State -> State) -> IO ()
 monitorTime mv = forever $ do
@@ -82,8 +88,8 @@ monitorSound :: MVar (State -> State) -> IO ()
 monitorSound mv = withCreateProcess (proc "alsactl" ["monitor"]) {std_out = CreatePipe} $ \_ (Just hout) _ _ ->
   forever $ do
     void $ B8.hGetLine hout
-    newSound <- getSound
-    putMVar mv (\s -> s{sound = newSound})
+    x <- getSound
+    putMVar mv (\s -> s{sound = x})
 
 getCapacity :: IO B8.ByteString
 getCapacity = B8.dropEnd 1 <$> B8.readFile "/sys/class/power_supply/BAT0/capacity"
@@ -103,13 +109,12 @@ prettyTime Time{..} = intDec year <> char7 '.' <> intDec month <> char7 '.' <> i
 
 {-# INLINE prettySound #-}
 prettySound :: Sound -> Builder
-prettySound Sound{..} = text <> pad (byteString volume)
+prettySound Sound{..} = text <> pad (intDec volume) <> char7 '%'
   where text | muted     = byteString " Muted:"
              | otherwise = byteString "Volume:"
-        pad = case B8.length volume of
-          2 -> (char7 ' ' <>) . (char7 ' ' <>)
-          3 -> (char7 ' ' <>)
-          _ -> id
+        pad | volume < 10  = (char7 ' ' <>) . (char7 ' ' <>)
+            | volume < 100 = (char7 ' ' <>)
+            | otherwise = id
 
 {-# INLINE prettyBattery #-}
 prettyBattery :: Battery -> Builder
